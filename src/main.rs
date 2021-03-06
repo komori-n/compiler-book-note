@@ -34,6 +34,16 @@ enum Symbol {
     Sub,
 }
 
+impl Symbol {
+    fn parse(c: char) -> Option<Symbol> {
+        match c {
+            '+' => Some(Symbol::Add),
+            '-' => Some(Symbol::Sub),
+            _ => None
+        }
+    }
+}
+
 impl TokenList {
     fn new() -> Self {
         Self { head: None, tail: None }
@@ -68,20 +78,15 @@ impl TokenList {
 
         while let Some(&c) = it.peek() {
             match c {
-                c if c.is_whitespace() => {
-                    it.next();
-                },
+                c if c.is_whitespace() => { it.next(); },
                 c if c.is_ascii_digit() => {
                     let number = get_number(&mut it)?;
                     list.push(TokenContent::Number(number));
                 },
-                '+' => {
+                c if Symbol::parse(c).is_some() => {
+                    let symbol = Symbol::parse(c).unwrap();
+                    list.push(TokenContent::Symbol(symbol));
                     it.next();
-                    list.push(TokenContent::Symbol(Symbol::Add));
-                },
-                '-' => {
-                    it.next();
-                    list.push(TokenContent::Symbol(Symbol::Sub));
                 }
                 _ => {
                     return Err(anyhow!("unexpected symbol"));
@@ -97,39 +102,32 @@ impl TokenList {
         println!(".global main");
         println!("main:");
 
-        if let Some(head) = &self.head {
-            if let TokenContent::Number(number) = head.borrow().content {
-                println!("    mov rax, {}", number);
-            } else {
-                return Err(anyhow!("unexpected symbol"));
-            }
+        let head = self.head.as_ref()
+            .with_context(|| "parse result is null")?;
 
-            let mut prev_symbol: Option<Symbol> = None;
-            let mut curr_token = head.borrow().next.clone();
-            while let Some(token) = curr_token {
-                match &token.borrow().content {
-                    TokenContent::Number(number) => {
-                        match prev_symbol {
-                            Some(Symbol::Add) => {
-                                println!("    add rax, {}", number);
-                            },
-                            Some(Symbol::Sub) => {
-                                println!("    sub rax, {}", number);
-                            },
-                            None => {
-                                return Err(anyhow!("unexpected hoge"));
-                            }
-                        }
-                        prev_symbol = None;
-                    },
-                    TokenContent::Symbol(symbol) => {
-                        prev_symbol = Some(*symbol);
-                    },
-                }
-                curr_token = token.borrow().next.clone();
-            }
+        if let TokenContent::Number(number) = head.borrow().content {
+            println!("    mov rax, {}", number);
         } else {
-            return Err(anyhow!("unexpected symbol"));
+            return Err(anyhow!("first token is not number"));
+        }
+
+        let mut prev_symbol: Option<Symbol> = None;
+        let mut token_link = head.borrow().next.clone();
+        while let Some(token) = token_link {
+            match &token.borrow().content {
+                TokenContent::Number(number) => {
+                    match prev_symbol {
+                        Some(Symbol::Add) => println!("    add rax, {}", number),
+                        Some(Symbol::Sub) => println!("    sub rax, {}", number),
+                        None => return Err(anyhow!("unexpected hoge")),
+                    }
+                    prev_symbol = None;
+                },
+                TokenContent::Symbol(symbol) => {
+                    prev_symbol = Some(*symbol);
+                },
+            }
+            token_link = token.borrow().next.clone();
         }
 
         println!("    ret");
@@ -141,7 +139,7 @@ impl TokenList {
 fn get_number<T: Iterator<Item=char>>(it: &mut Peekable<T>) -> Result<i32> {
     let mut number = 0;
 
-    if !it.peek().with_context(|| "number is expected")?.is_digit(10) {
+    if !it.peek().with_context(|| "number is expected")?.is_ascii_digit() {
         return Err(anyhow!("number is expected"));
     }
 
