@@ -1,0 +1,35 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+
+[tasks.clean]
+dependencies = [
+    "clean_rust",
+    "clean_script",
+]
+
+[tasks.clean_rust]
+command = "cargo"
+args = ["clean"]
+
+[tasks.clean_script]
+command = "bash"
+args = ["clean.sh"]
+
+[tasks.test]
+dependencies = [
+    "test_rust",
+    "test_script"
+]
+
+[tasks.test_rust]
+command = "cargo"
+args = ["test"]
+
+[tasks.test_script]
+command = "bash"
+args = ["test.sh"]
+dependencies = [ "build" ]
