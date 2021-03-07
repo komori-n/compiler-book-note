@@ -1,6 +1,7 @@
 mod token;
 
 use anyhow::{Result, Context};
+use nom::error::convert_error;
 use crate::token::Expr;
 use clap::{
     crate_authors, crate_description, crate_name, crate_version,
@@ -20,7 +21,11 @@ fn main() -> Result<()> {
         .with_context(|| "not found")?;
 
     let expr = Expr::parse(expr)
-        .expect("parse error");
+        .map_err(|e| {
+            if let nom::Err::Error(e) = e {
+                println!("{}", convert_error(expr, e));
+            }
+        }).expect("nyan");
 
     expr.compile();
 
