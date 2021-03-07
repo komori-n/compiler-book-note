@@ -1,9 +1,11 @@
 use anyhow::{anyhow, Context, Result};
-use nom::{IResult, Offset, branch::alt, character::complete::char, character::complete::{digit1, multispace0}, combinator::{map, map_res, opt}, delimited, sequence::{delimited, tuple}};
-use nom::{Err, error::Error};
+use nom::{Offset, branch::alt, character::complete::char, character::complete::{digit1, multispace0}, combinator::{eof, map, map_res, opt, verify}, delimited, error::{ErrorKind, VerboseError}, sequence::{delimited, tuple}};
+use nom::{error::Error};
 use std::{hint::unreachable_unchecked, iter::Peekable};
 use std::rc::Rc;
 use std::cell::RefCell;
+
+type IResult<I, O> = nom::IResult<I, O, VerboseError<I>>;
 
 
 // expr    = mul ("+" mul | "-" mul)*
@@ -40,9 +42,12 @@ pub enum OperatorKind {
 }
 
 impl Expr {
-    pub fn parse(s: &str) -> Result<Expr, Err<Error<&str>>> {
-        expr_parser(s)
-            .map(|(_, expr)| expr)
+    pub fn parse(s: &str) -> Result<Expr, nom::Err<VerboseError<&str>>> {
+        tuple((
+            expr_parser,
+            eof
+        ))(s)
+            .map(|(_, (expr, _))| expr)
     }
 
     pub fn compile(&self) {
