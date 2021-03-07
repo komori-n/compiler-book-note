@@ -8,10 +8,6 @@ use std::cell::RefCell;
 type IResult<I, O> = nom::IResult<I, O, VerboseError<I>>;
 
 
-// expr    = mul ("+" mul | "-" mul)*
-// mul     = primary ("*" primary | "/" primary)*
-// primary = num | "("expr")"
-
 // <expr>       = <mul> [('+' | '-') <expr>]
 // <mul>        = <primary> [('*' | '/') <mul>]
 // <primary>    = <num> | <paren_expr>
