@@ -1,15 +1,15 @@
-use anyhow::{anyhow, Context, Result};
-use nom::{Offset, branch::alt, character::complete::char, character::complete::{digit1, multispace0}, combinator::{eof, map, map_res, opt, verify}, delimited, error::{ErrorKind, VerboseError}, sequence::{delimited, tuple}};
-use nom::{error::Error};
-use std::{hint::unreachable_unchecked, iter::Peekable};
-use std::rc::Rc;
-use std::cell::RefCell;
+use anyhow::{Result};
+use nom::{branch::alt, bytes::complete::tag, character::complete::char, character::complete::{digit1, multispace0}, combinator::{eof, map, map_res, opt}, error::{VerboseError}, sequence::{delimited, tuple}};
 
 type IResult<I, O> = nom::IResult<I, O, VerboseError<I>>;
 
 
-// <expr>       = <mul> [('+' | '-') <expr>]
-// <mul>        = <primary> [('*' | '/') <mul>]
+// <expr>       = <equality>
+// <equality>   = <relational> ("==" | "!=" relational)*
+// <relational> = <add> (("<" | "<=" | ">" | ">=") <add>)*
+// <add>        = <mul> [('+' | '-') <mul>]*
+// <mul>        = <unary> [('*' | '/') <unary>]*
+// <unary>      = ('+' | '-')? primary
 // <primary>    = <num> | <paren_expr>
 // <paren_expr> = '(' <expr> ')'
 // <num>        = [0-9]+
@@ -34,7 +34,13 @@ pub enum OperatorKind {
     Add,
     Sub,
     Mul,
-    Div
+    Div,
+    Clt,
+    Cle,
+    Cgt,
+    Cge,
+    Ceq,
+    Cne,
 }
 
 impl Expr {
@@ -69,14 +75,27 @@ impl Expr {
                 println!("    pop rdi");
                 println!("    pop rax");
 
-                match bin_op.op {
-                    OperatorKind::Add => println!("    add rax, rdi"),
-                    OperatorKind::Sub => println!("    sub rax, rdi"),
-                    OperatorKind::Mul => println!("    imul rax, rdi"),
-                    OperatorKind::Div => {
+                match &bin_op.op {
+                    &OperatorKind::Add => println!("    add rax, rdi"),
+                    &OperatorKind::Sub => println!("    sub rax, rdi"),
+                    &OperatorKind::Mul => println!("    imul rax, rdi"),
+                    &OperatorKind::Div => {
                         println!("    cqo");
                         println!("    idiv rax, rdi");
                     },
+                    op => {
+                        println!("    cmp rax, rdi");
+                        match op {
+                            &OperatorKind::Ceq => println!("    sete al"),
+                            &OperatorKind::Cne => println!("    setne al"),
+                            &OperatorKind::Clt => println!("    setl al"),
+                            &OperatorKind::Cle => println!("    setle al"),
+                            &OperatorKind::Cgt => println!("    setg al"),
+                            &OperatorKind::Cgt => println!("    setge al"),
+                            _ => unreachable!()
+                        }
+                        println!("    movzb rax, al");
+                    }
                 }
 
                 println!("    push rax");
@@ -85,39 +104,30 @@ impl Expr {
     }
 }
 
-fn offset_op_parser(s: &str) -> IResult<&str, OperatorKind> {
-    alt((
-        map(
-            char('+'),
-            |_| OperatorKind::Add,
-        ),
-        map(
-            char('-'),
-            |_| OperatorKind::Sub,
-        )
-    ))(s)
+macro_rules! operator_parser {
+    ($($x:expr => $y:expr),*) => {
+        alt((
+            $(map(
+                tag($x),
+                |_| $y
+            )),*
+        ))
+    }
 }
 
-fn scale_op_parser(s: &str) -> IResult<&str, OperatorKind> {
-    alt((
-        map(
-            char('*'),
-            |_| OperatorKind::Mul,
-        ),
-        map(
-            char('/'),
-            |_| OperatorKind::Div,
-        )
-    ))(s)
-}
-
-pub fn expr_parser(s: &str) -> IResult<&str, Expr> {
+pub fn binary_parser<'a, F: 'a, G: 'a, H: 'a>(left_child_parser: F, op_parser: G, right_child_parser: H)
+    -> impl FnMut(&'a str) -> IResult<&'a str, Expr>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, Expr>,
+    G: FnMut(&'a str) -> IResult<&'a str, OperatorKind>,
+    H: FnMut(&'a str) -> IResult<&'a str, Expr>,
+{
     map(
         tuple((
-            ws(mul_parser),
+            ws(left_child_parser),
             opt(tuple((
-                ws(offset_op_parser),
-                ws(expr_parser)
+                ws(op_parser),
+                ws(right_child_parser)
             )))
         )),
         |(left, opt)| {
@@ -131,34 +141,83 @@ pub fn expr_parser(s: &str) -> IResult<&str, Expr> {
                 left
             }
         }
+    )
+}
+
+fn expr_parser(s: &str) -> IResult<&str, Expr> {
+    equality_parser(s)
+}
+
+fn equality_parser(s: &str) -> IResult<&str, Expr> {
+    binary_parser(
+        relational_parser,
+        operator_parser!(
+            "==" => OperatorKind::Ceq,
+            "!=" => OperatorKind::Cne
+        ),
+        equality_parser
+    )(s)
+}
+
+fn relational_parser(s: &str) -> IResult<&str, Expr> {
+    binary_parser(
+        add_parser,
+        operator_parser!(
+            "<=" => OperatorKind::Cle,
+            "<" => OperatorKind::Clt,
+            ">=" => OperatorKind::Cge,
+            ">" => OperatorKind::Cgt
+        ),
+        relational_parser
+    )(s)
+}
+
+fn add_parser(s: &str) -> IResult<&str, Expr> {
+    binary_parser(
+        mul_parser,
+        operator_parser!(
+            "+" => OperatorKind::Add,
+            "-" => OperatorKind::Sub
+        ),
+        add_parser
     )(s)
 }
 
 fn mul_parser(s: &str) -> IResult<&str, Expr> {
+    binary_parser(
+        unary_parser,
+        operator_parser!(
+            "*" => OperatorKind::Mul,
+            "/" => OperatorKind::Div
+        ),
+        mul_parser
+    )(s)
+}
+
+fn unary_parser(s: &str) -> IResult<&str, Expr> {
     map(
         tuple((
-            ws(primary_parser),
-            opt(tuple((
-                ws(scale_op_parser),
-                ws(primary_parser)
-            )))
+            opt(ws(operator_parser!(
+                "+" => OperatorKind::Add,
+                "-" => OperatorKind::Sub
+            ))),
+            primary_parser
         )),
-        |(left, opt)| {
-            if let Some((op, right)) = opt {
+        |(opt, primary)| {
+            if opt == Some(OperatorKind::Sub) {
                 Expr::BinaryOperation(BinaryOperation {
-                    op,
-                    left: Box::new(left),
-                    right: Box::new(right)
+                    op: OperatorKind::Sub,
+                    left: Box::new(Expr::Num(0)),
+                    right: Box::new(primary)
                 })
             } else {
-                left
+                primary
             }
         }
     )(s)
 }
 
 fn primary_parser(s: &str) -> IResult<&str, Expr> {
-
     alt((
         map(
             ws(num_parser),
@@ -185,7 +244,7 @@ fn num_parser(s: &str) -> IResult<&str, Num> {
 
 fn ws<'a, F: 'a, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
     where
-    F: Fn(&'a str) -> IResult<&'a str, O>,
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     delimited(
         multispace0,
@@ -201,19 +260,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn offset_op_parser_test() {
-        assert_eq!(offset_op_parser("+abc").unwrap(), ("abc", OperatorKind::Add));
-        assert_eq!(offset_op_parser("-abc").unwrap(), ("abc", OperatorKind::Sub));
-        assert!(offset_op_parser("*abc").is_err());
-        assert!(offset_op_parser("/abc").is_err());
-    }
+    fn op_parser_test() {
+        let mut offset_parser = operator_parser!(
+            "+" => OperatorKind::Add,
+            "-" => OperatorKind::Sub
+        );
 
-    #[test]
-    fn scale_op_parser_test() {
-        assert!(scale_op_parser("+abc").is_err());
-        assert!(scale_op_parser("-abc").is_err());
-        assert_eq!(scale_op_parser("*abc").unwrap(), ("abc", OperatorKind::Mul));
-        assert_eq!(scale_op_parser("/abc").unwrap(), ("abc", OperatorKind::Div));
+        let x: IResult<&str, OperatorKind> = offset_parser("+abc");
+
+        assert_eq!(offset_parser("+abc").unwrap(), ("abc", OperatorKind::Add));
+        assert_eq!(offset_parser("-abc").unwrap(), ("abc", OperatorKind::Sub));
+        assert!(offset_parser("/abc").is_err());
     }
 
     #[test]
@@ -229,6 +286,12 @@ mod tests {
                     right: Box::new(Expr::Num(227))
                 }))
             })));
+    }
+
+    #[test]
+    fn unary_parser_test() {
+        assert_eq!(unary_parser("+334").unwrap(), ("", Expr::Num(334)));
+        assert!(unary_parser("--334").is_err());
     }
 
     #[test]
