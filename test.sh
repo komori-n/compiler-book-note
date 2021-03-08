@@ -18,12 +18,14 @@ assert() {
     fi
 }
 
-assert 0 0
-assert 42 42
-assert 21 "5+20-4"
-assert 41 " 12 + 34 - 5 "
-assert 1 "33>4"
-assert 1 "0<2==1"
-assert 0 "26==4"
+assert 0 '0;'
+assert 42 '42;'
+assert 21 "5+20-4;"
+assert 41 " 12 + 34 - 5 ;"
+assert 1 "33>4;"
+assert 1 "0<2==1;"
+assert 0 "26==4;"
+assert 42 "a=42; a;"
+assert 51 "a=33-4; b=26-4; a+b;"
 
 echo OK

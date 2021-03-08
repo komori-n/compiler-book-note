@@ -2,7 +2,7 @@ mod token;
 
 use anyhow::{Result, Context};
 use nom::error::convert_error;
-use crate::token::Expr;
+use crate::token::Program;
 use clap::{
     crate_authors, crate_description, crate_name, crate_version,
     Arg, App,
@@ -20,14 +20,14 @@ fn main() -> Result<()> {
     let expr = matches.value_of("expr")
         .with_context(|| "not found")?;
 
-    let expr = Expr::parse(expr)
+    let program = Program::parse(expr)
         .map_err(|e| {
             if let nom::Err::Error(e) = e {
                 println!("{}", convert_error(expr, e));
             }
-        }).expect("nyan");
+        }).unwrap();
 
-    expr.compile();
+    program.compile();
 
     Ok(())
 }
