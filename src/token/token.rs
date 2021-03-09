@@ -8,8 +8,9 @@ pub struct Program {
 #[derive(Debug, PartialEq)]
 pub enum Expr {
     Num(Num),
-    Ident(i64),
+    Ident(String),
     BinaryOperation(BinaryOperation),
+    Return(Box<Expr>),
 }
 
 #[derive(Debug, PartialEq)]
