@@ -125,6 +125,27 @@ impl Expr {
                 stmt.generate(ident_map, label_idx);
                 println!("    jmp .Lbegin{}", while_label_idx);
                 println!(".Lend{}:", while_label_idx);
+            },
+            Expr::For(init, cond, end, stmt) => {
+                let for_label_idx = *label_idx;
+                *label_idx += 1;
+
+                if let Some(init) = init {
+                    init.generate(ident_map, label_idx);
+                }
+                println!(".Lbegin{}:", for_label_idx);
+                if let Some(cond) = cond {
+                    cond.generate(ident_map, label_idx);
+                    println!("    pop rax");
+                    println!("    cmp rax, 0");
+                    println!("    je  .Lend{}", for_label_idx);
+                }
+                stmt.generate(ident_map, label_idx);
+                if let Some(end) = end {
+                    end.generate(ident_map, label_idx);
+                }
+                println!("jmp .Lbegin{}", for_label_idx);
+                println!(".Lend{}:", for_label_idx);
             }
         }
     }

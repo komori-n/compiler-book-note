@@ -12,7 +12,8 @@ pub enum Expr {
     BinaryOperation(BinaryOperation),
     Return(Box<Expr>),
     If(Box<Expr>, Box<Expr>, Option<Box<Expr>>),
-    While(Box<Expr>, Box<Expr>)
+    While(Box<Expr>, Box<Expr>),
+    For(Option<Box<Expr>>, Option<Box<Expr>>, Option<Box<Expr>>, Box<Expr>)
 }
 
 #[derive(Debug, PartialEq)]

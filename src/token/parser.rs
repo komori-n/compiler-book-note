@@ -122,6 +122,26 @@ fn stmt_parser(s: &str) -> IResult<&str, Expr> {
             |(_, _, cond, _, stmt)| {
                 Expr::While(Box::new(cond), Box::new(stmt))
             }
+        ),
+        map(
+            tuple((
+                ws(tag("for")),
+                ws(char('(')),
+                opt(ws(expr_parser)),
+                ws(char(';')),
+                opt(ws(expr_parser)),
+                ws(char(';')),
+                opt(ws(expr_parser)),
+                ws(char(')')),
+                ws(stmt_parser)
+            )),
+            |(_for, _, init, _, cond, _, end, _, stmt)| {
+                let init_expr: Option<Box<Expr>> = init.map(|expr| Box::new(expr));
+                let cond_expr: Option<Box<Expr>> = cond.map(|expr| Box::new(expr));
+                let end_expr: Option<Box<Expr>> = end.map(|expr| Box::new(expr));
+
+                Expr::For(init_expr, cond_expr, end_expr, Box::new(stmt))
+            }
         )
     ))(s)
 }
