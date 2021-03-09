@@ -5,7 +5,7 @@ type IResult<I, O> = nom::IResult<I, O, VerboseError<I>>;
 
 
 // <program>    = <stmt>*
-// <stmt>       = <expr> ';' | "return" <expr> ";"
+// <stmt>       = <expr> ';' | "return" <expr> ";" | "if" "(" <expr> ")" stmt ("else" stmt)?
 // <expr>       = <assign>
 // <assign>     = <equality> ("=" assign)?
 // <equality>   = <relational> ("==" | "!=" relational)*
@@ -89,6 +89,28 @@ fn stmt_parser(s: &str) -> IResult<&str, Expr> {
             )),
             |(_, _, _, expr, _)| Expr::Return(Box::new(expr))
         ),
+        map(
+            tuple((
+                ws(tag("if")),
+                ws(char('(')),
+                ws(expr_parser),
+                ws(char(')')),
+                ws(stmt_parser),
+                opt(tuple((
+                    multispace0,
+                    tag("else"),
+                    multispace1,
+                    ws(stmt_parser)
+                )))
+            )),
+            |(_if, _, cond, _, then, opt)| {
+                if let Some((_, _, _, else_)) = opt {
+                    Expr::If(Box::new(cond), Box::new(then), Some(Box::new(else_)))
+                } else {
+                    Expr::If(Box::new(cond), Box::new(then), None)
+                }
+            }
+        )
     ))(s)
 }
 
