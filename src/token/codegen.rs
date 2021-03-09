@@ -111,6 +111,20 @@ impl Expr {
                     else_.generate(ident_map, label_idx);
                 }
                 println!(".Lend{}:", label_idx);
+            },
+            Expr::While(cond, stmt) => {
+                let while_label_idx = *label_idx;
+                *label_idx += 1;
+
+                println!(".Lbegin{}:", while_label_idx);
+                cond.generate(ident_map, label_idx);
+                println!("    pop rax");
+                println!("    cmp rax, 0");
+                println!("    je .Lend{}", while_label_idx);
+
+                stmt.generate(ident_map, label_idx);
+                println!("    jmp .Lbegin{}", while_label_idx);
+                println!(".Lend{}:", while_label_idx);
             }
         }
     }

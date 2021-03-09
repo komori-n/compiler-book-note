@@ -110,6 +110,18 @@ fn stmt_parser(s: &str) -> IResult<&str, Expr> {
                     Expr::If(Box::new(cond), Box::new(then), None)
                 }
             }
+        ),
+        map(
+            tuple((
+                ws(tag("while")),
+                ws(char('(')),
+                ws(expr_parser),
+                ws(char(')')),
+                ws(stmt_parser)
+            )),
+            |(_, _, cond, _, stmt)| {
+                Expr::While(Box::new(cond), Box::new(stmt))
+            }
         )
     ))(s)
 }
