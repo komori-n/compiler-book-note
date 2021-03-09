@@ -29,5 +29,10 @@ assert 42 "a=42; a;"
 assert 51 "a=33-4; b=26-4; a+b;"
 assert 51 "hoge=33-4; fuga=26-4; hoge+fuga;"
 assert 51 "a=33-4; b=26-4; return a+b; return 20;"
+assert 5 "if(3>2)return 5; a=10; return a;"
+assert 5 "if(3>2)return 5; else return 10;"
+assert 10 "if(3<2)return 5; else return 10;"
+assert 4 "a=0;while(a<4)a=a+2; return a;"
+assert 5 "j=0;for(i=0;i<5;i=i+1)j=j+1;return j;"
 
 echo OK
