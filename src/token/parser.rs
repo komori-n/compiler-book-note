@@ -79,71 +79,87 @@ fn stmt_parser(s: &str) -> IResult<&str, Expr> {
             )),
             |(expr, _)| expr
         ),
-        map(
-            tuple((
-                multispace0,
-                tag("return"),
-                multispace1,
-                ws(expr_parser),
-                ws(char(';'))
-            )),
-            |(_, _, _, expr, _)| Expr::Return(Box::new(expr))
-        ),
-        map(
-            tuple((
-                ws(tag("if")),
-                ws(char('(')),
-                ws(expr_parser),
-                ws(char(')')),
-                ws(stmt_parser),
-                opt(tuple((
-                    multispace0,
-                    tag("else"),
-                    multispace1,
-                    ws(stmt_parser)
-                )))
-            )),
-            |(_if, _, cond, _, then, opt)| {
-                if let Some((_, _, _, else_)) = opt {
-                    Expr::If(Box::new(cond), Box::new(then), Some(Box::new(else_)))
-                } else {
-                    Expr::If(Box::new(cond), Box::new(then), None)
-                }
-            }
-        ),
-        map(
-            tuple((
-                ws(tag("while")),
-                ws(char('(')),
-                ws(expr_parser),
-                ws(char(')')),
-                ws(stmt_parser)
-            )),
-            |(_, _, cond, _, stmt)| {
-                Expr::While(Box::new(cond), Box::new(stmt))
-            }
-        ),
-        map(
-            tuple((
-                ws(tag("for")),
-                ws(char('(')),
-                opt(ws(expr_parser)),
-                ws(char(';')),
-                opt(ws(expr_parser)),
-                ws(char(';')),
-                opt(ws(expr_parser)),
-                ws(char(')')),
-                ws(stmt_parser)
-            )),
-            |(_for, _, init, _, cond, _, end, _, stmt)| {
-                let init_expr: Option<Box<Expr>> = init.map(|expr| Box::new(expr));
-                let cond_expr: Option<Box<Expr>> = cond.map(|expr| Box::new(expr));
-                let end_expr: Option<Box<Expr>> = end.map(|expr| Box::new(expr));
-
-                Expr::For(init_expr, cond_expr, end_expr, Box::new(stmt))
-            }
-        )
+        return_parser,
+        if_parser,
+        while_parser,
+        for_parser,
     ))(s)
+}
+
+fn return_parser(s: &str) -> IResult<&str, Expr> {
+    map(
+        tuple((
+            multispace0,
+            tag("return"),
+            multispace1,
+            ws(expr_parser),
+            ws(char(';'))
+        )),
+        |(_, _, _, expr, _)| Expr::Return(Box::new(expr))
+    )(s)
+}
+
+fn if_parser(s: &str) -> IResult<&str, Expr> {
+    map(
+        tuple((
+            ws(tag("if")),
+            ws(char('(')),
+            ws(expr_parser),
+            ws(char(')')),
+            ws(stmt_parser),
+            opt(tuple((
+                multispace0,
+                tag("else"),
+                multispace1,
+                ws(stmt_parser)
+            )))
+        )),
+        |(_if, _, cond, _, then, opt)| {
+            if let Some((_, _, _, else_)) = opt {
+                Expr::If(Box::new(cond), Box::new(then), Some(Box::new(else_)))
+            } else {
+                Expr::If(Box::new(cond), Box::new(then), None)
+            }
+        }
+    )(s)
+}
+
+fn while_parser(s: &str) -> IResult<&str, Expr> {
+    map(
+        tuple((
+            ws(tag("while")),
+            ws(char('(')),
+            ws(expr_parser),
+            ws(char(')')),
+            ws(stmt_parser)
+        )),
+        |(_, _, cond, _, stmt)| {
+            Expr::While(Box::new(cond), Box::new(stmt))
+        }
+    )(s)
+}
+
+fn for_parser(s: &str) -> IResult<&str, Expr> {
+    map(
+        tuple((
+            ws(tag("for")),
+            ws(char('(')),
+            opt(ws(expr_parser)),
+            ws(char(';')),
+            opt(ws(expr_parser)),
+            ws(char(';')),
+            opt(ws(expr_parser)),
+            ws(char(')')),
+            ws(stmt_parser)
+        )),
+        |(_for, _, init, _, cond, _, end, _, stmt)| {
+            let init_expr: Option<Box<Expr>> = init.map(|expr| Box::new(expr));
+            let cond_expr: Option<Box<Expr>> = cond.map(|expr| Box::new(expr));
+            let end_expr: Option<Box<Expr>> = end.map(|expr| Box::new(expr));
+
+            Expr::For(init_expr, cond_expr, end_expr, Box::new(stmt))
+        }
+    )(s)
 }
 
 fn expr_parser(s: &str) -> IResult<&str, Expr> {

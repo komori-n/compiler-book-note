@@ -27,6 +27,14 @@ impl Program {
 
 impl Expr {
     fn generate(&self, ident_map :&mut HashMap<String, usize>, label_idx: &mut usize) {
+        let curr_label_idx = *label_idx;
+        *label_idx += 1;
+
+        let begin_label = format!(".Lbegin{}", curr_label_idx);
+        let else_label = format!(".Lelse{}", curr_label_idx);
+        let end_label = format!(".Lend{}", curr_label_idx);
+
+
         match self {
             Expr::Num(num) => {
                 println!("    push {}", num);
@@ -95,57 +103,48 @@ impl Expr {
                 println!("    ret")
             },
             Expr::If(cond, then, else_) => {
-                let if_label_idx = *label_idx;
-                *label_idx += 1;
-
                 cond.generate(ident_map, label_idx);
                 println!("    pop rax");
                 println!("    cmp rax, 0");
-                println!("    je  .Lelse{}", label_idx);
+                println!("    je  {}", else_label);
 
                 then.generate(ident_map, label_idx);
-                println!("    jmp .Lend{}", label_idx);
+                println!("    jmp {}", end_label);
 
-                println!(".Lelse{}:", label_idx);
+                println!("{}:", else_label);
                 if let Some(else_) = else_ {
                     else_.generate(ident_map, label_idx);
                 }
-                println!(".Lend{}:", label_idx);
+                println!("{}:", end_label);
             },
             Expr::While(cond, stmt) => {
-                let while_label_idx = *label_idx;
-                *label_idx += 1;
-
-                println!(".Lbegin{}:", while_label_idx);
+                println!("{}:", begin_label);
                 cond.generate(ident_map, label_idx);
                 println!("    pop rax");
                 println!("    cmp rax, 0");
-                println!("    je .Lend{}", while_label_idx);
+                println!("    je {}", end_label);
 
                 stmt.generate(ident_map, label_idx);
-                println!("    jmp .Lbegin{}", while_label_idx);
-                println!(".Lend{}:", while_label_idx);
+                println!("    jmp {}", begin_label);
+                println!("{}:", end_label);
             },
             Expr::For(init, cond, end, stmt) => {
-                let for_label_idx = *label_idx;
-                *label_idx += 1;
-
                 if let Some(init) = init {
                     init.generate(ident_map, label_idx);
                 }
-                println!(".Lbegin{}:", for_label_idx);
+                println!("{}:", begin_label);
                 if let Some(cond) = cond {
                     cond.generate(ident_map, label_idx);
                     println!("    pop rax");
                     println!("    cmp rax, 0");
-                    println!("    je  .Lend{}", for_label_idx);
+                    println!("    je  {}", end_label);
                 }
                 stmt.generate(ident_map, label_idx);
                 if let Some(end) = end {
                     end.generate(ident_map, label_idx);
                 }
-                println!("jmp .Lbegin{}", for_label_idx);
-                println!(".Lend{}:", for_label_idx);
+                println!("jmp {}", begin_label);
+                println!("{}:", end_label);
             }
         }
     }
