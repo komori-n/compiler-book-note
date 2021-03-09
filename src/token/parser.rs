@@ -1,11 +1,11 @@
 use crate::token::{Expr, OperatorKind, Program, BinaryOperation, Num};
-use nom::{branch::alt, bytes::complete::tag, character::complete::char, character::complete::{digit1, multispace0, one_of}, combinator::{map, map_res, opt}, error::{VerboseError}, multi::many0, sequence::{delimited, tuple}};
+use nom::{branch::alt, bytes::complete::tag, character::complete::char, character::complete::{alphanumeric1, digit1, multispace0, multispace1, one_of}, combinator::{map, map_res, opt}, error::{VerboseError}, multi::many0, sequence::{delimited, tuple}};
 
 type IResult<I, O> = nom::IResult<I, O, VerboseError<I>>;
 
 
 // <program>    = <stmt>*
-// <stmt>       = <expr> ';'
+// <stmt>       = <expr> ';' | "return" <expr> ";"
 // <expr>       = <assign>
 // <assign>     = <equality> ("=" assign)?
 // <equality>   = <relational> ("==" | "!=" relational)*
@@ -71,13 +71,25 @@ where
 }
 
 fn stmt_parser(s: &str) -> IResult<&str, Expr> {
-    map(
-        tuple((
-            ws(expr_parser),
-            ws(char(';'))
-        )),
-        |(stmt, _)| stmt
-    )(s)
+    alt((
+        map(
+            tuple((
+                ws(expr_parser),
+                ws(char(';'))
+            )),
+            |(expr, _)| expr
+        ),
+        map(
+            tuple((
+                multispace0,
+                tag("return"),
+                multispace1,
+                ws(expr_parser),
+                ws(char(';'))
+            )),
+            |(_, _, _, expr, _)| Expr::Return(Box::new(expr))
+        ),
+    ))(s)
 }
 
 fn expr_parser(s: &str) -> IResult<&str, Expr> {
@@ -192,10 +204,10 @@ fn num_parser(s: &str) -> IResult<&str, Num> {
     )(s)
 }
 
-fn ident_parser(s: &str) -> IResult<&str, i64> {
-    one_of("qwertyuiopasdfghjklzxcvbnm")(s)
+fn ident_parser(s: &str) -> IResult<&str, String> {
+    alphanumeric1(s)
         .map(|(no_used, ident)| {
-            (no_used, 8 * (ident.to_string().as_bytes()[0] - b'a') as i64)
+            (no_used, ident.to_owned())
         })
 }
 
@@ -220,13 +232,13 @@ mod tests {
     fn op_parser_test() {
         let mut offset_parser = operator_parser!(
             "+" => OperatorKind::Add,
-            "-" => OperatorKind::Sub
+            "-" => OperatorKind::Substruct
         );
 
         let _: IResult<&str, OperatorKind> = offset_parser("+abc");
 
         assert_eq!(offset_parser("+abc").unwrap(), ("abc", OperatorKind::Add));
-        assert_eq!(offset_parser("-abc").unwrap(), ("abc", OperatorKind::Sub));
+        assert_eq!(offset_parser("-abc").unwrap(), ("abc", OperatorKind::Substruct));
         assert!(offset_parser("/abc").is_err());
     }
 
@@ -238,7 +250,7 @@ mod tests {
                 op: OperatorKind::Add,
                 left: Box::new(Expr::Num(334)),
                 right: Box::new(Expr::BinaryOperation(BinaryOperation {
-                    op: OperatorKind::Mul,
+                    op: OperatorKind::Multiply,
                     left: Box::new(Expr::Num(264)),
                     right: Box::new(Expr::Num(227))
                 }))
@@ -256,7 +268,7 @@ mod tests {
         assert_eq!(primary_parser("334abc").unwrap(), ("abc", Expr::Num(334)));
         assert_eq!(primary_parser("(264)abc").unwrap(), ("abc", Expr::Num(264)));
         assert!(primary_parser("(227").is_err());
-        assert!(primary_parser("(def)").is_err());
+        assert!(primary_parser("(d f)").is_err());
     }
 
     #[test]
@@ -273,12 +285,12 @@ mod tests {
     #[test]
     fn paren_expr_parser_test() {
         assert_eq!(paren_expr_parser("(334)abc").unwrap(), ("abc", Expr::Num(334)));
-        assert!(paren_expr_parser("(abc)").is_err());
+        assert!(paren_expr_parser("(a c)").is_err());
     }
 
     #[test]
     fn num_parser_test() {
         assert_eq!(num_parser("334abc").unwrap(), ("abc", 334));
-        assert!(num_parser("abc").is_err());
+        assert!(num_parser("a c").is_err());
     }
 }

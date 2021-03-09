@@ -27,5 +27,7 @@ assert 1 "0<2==1;"
 assert 0 "26==4;"
 assert 42 "a=42; a;"
 assert 51 "a=33-4; b=26-4; a+b;"
+assert 51 "hoge=33-4; fuga=26-4; hoge+fuga;"
+assert 51 "a=33-4; b=26-4; return a+b; return 20;"
 
 echo OK
