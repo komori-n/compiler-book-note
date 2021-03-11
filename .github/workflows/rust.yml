@@ -15,4 +15,6 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      run: cargo make test
+      run: cargo test --verbose
+    - name: Run system tests
+      run: ./test.sh
