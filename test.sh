@@ -18,21 +18,59 @@ assert() {
     fi
 }
 
+# NUM
 assert 0 '0;'
 assert 42 '42;'
-assert 21 "5+20-4;"
-assert 41 " 12 + 34 - 5 ;"
-assert 1 "33>4;"
-assert 1 "0<2==1;"
-assert 0 "26==4;"
-assert 42 "a=42; a;"
-assert 51 "a=33-4; b=26-4; a+b;"
-assert 51 "hoge=33-4; fuga=26-4; hoge+fuga;"
-assert 51 "a=33-4; b=26-4; return a+b; return 20;"
-assert 5 "if(3>2)return 5; a=10; return a;"
-assert 5 "if(3>2)return 5; else return 10;"
-assert 10 "if(3<2)return 5; else return 10;"
-assert 4 "a=0;while(a<4)a=a+2; return a;"
-assert 5 "j=0;for(i=0;i<5;i=i+1)j=j+1;return j;"
+
+# PAREN_EXPR
+assert 42 '(((42)));'
+
+# PRIMARY(omit)
+# ( PRIMARY = NUM | PAREN_EXPR )
+
+# UNARY
+assert 42 '+42;'
+assert 3 '5+(-2);'
+
+# MUL
+assert 12 '3*4;'
+assert 2 '8/4;'
+
+# ADD
+assert 5 '3+2;'
+assert 1 '3-2;'
+
+# RELATIONAL
+assert 1 '1 < 2;'
+assert 0 '1 < 0;'
+assert 1 '1 <= 1;'
+assert 0 '1 <= 0;'
+assert 1 '2 > 1;'
+assert 0 '0 > 1;'
+assert 1 '1 >= 1;'
+assert 0 '0 >= 1;'
+
+# EQUALITY
+assert 1 '3 == 3;'
+assert 0 '3 == 4;'
+assert 0 '3 != 3;'
+assert 1 '3 != 4;'
+
+# ASSIGN
+assert 3 'a=3; a;'
+assert 13 'a=3; b=10; c=a+b; c;'
+
+# STMT
+assert 3 '1; 2; return 3; 4; return 5;'
+assert 3 'if (1 < 2) return 3; return 5;'
+assert 5 'if (1 > 2) return 3; return 5;'
+assert 3 'if (1 < 2) 3; else 5;'
+assert 5 'if (1 > 2) 3; else 5;'
+assert 1 'b = 0; a=2; while (a = a - 1) b = b + 1; b;'
+assert 2 'b = 0; a=2; while (b) a = a + 1; a;'
+assert 4 'b=1; for (a=0;a<3;a=a+1) b=b+1; b;'
+assert 4 'a=0;b=1; for (;a<3;a=a+1) b=b+1; b;'
+assert 3 'b=1; for (a=0;;a=a+1) if (b==3) return b; else b=b+1;'
+assert 3 'for (a=0;a<3;) a=a+1; a;'
 
 echo OK
