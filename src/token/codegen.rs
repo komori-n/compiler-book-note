@@ -145,6 +145,12 @@ impl Expr {
                 }
                 println!("jmp {}", begin_label);
                 println!("{}:", end_label);
+            },
+            Expr::Block(stmts) => {
+                stmts.iter()
+                    .for_each(move |stmt| stmt.generate(ident_map, label_idx));
+
+                println!("    pop rax");
             }
         }
     }

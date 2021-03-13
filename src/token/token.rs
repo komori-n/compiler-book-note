@@ -13,7 +13,8 @@ pub enum Expr {
     Return(Box<Expr>),
     If(Box<Expr>, Box<Expr>, Option<Box<Expr>>),
     While(Box<Expr>, Box<Expr>),
-    For(Option<Box<Expr>>, Option<Box<Expr>>, Option<Box<Expr>>, Box<Expr>)
+    For(Option<Box<Expr>>, Option<Box<Expr>>, Option<Box<Expr>>, Box<Expr>),
+    Block(Vec<Expr>)
 }
 
 #[derive(Debug, PartialEq)]
