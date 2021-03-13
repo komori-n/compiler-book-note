@@ -72,5 +72,6 @@ assert 4 'b=1; for (a=0;a<3;a=a+1) b=b+1; b;'
 assert 4 'a=0;b=1; for (;a<3;a=a+1) b=b+1; b;'
 assert 3 'b=1; for (a=0;;a=a+1) if (b==3) return b; else b=b+1;'
 assert 3 'for (a=0;a<3;) a=a+1; a;'
+assert 10 "b=0; for (a=0; a<5;a=a+1) { c=a; b=b+c; } b;"
 
 echo OK
